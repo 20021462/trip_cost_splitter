@@ -1,6 +1,16 @@
 import { useState, useEffect, useMemo } from "react";
 import {
-  Plus, Trash2, Users, Receipt, ArrowRight, X, Plane, Wallet, Check, ChevronLeft, ChevronRight,
+  Plus,
+  Trash2,
+  Users,
+  Receipt,
+  ArrowRight,
+  X,
+  Plane,
+  Wallet,
+  Check,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 const STORAGE_KEY = "trip-ledger:data";
@@ -13,10 +23,17 @@ const uid = () => Math.random().toString(36).slice(2, 10);
 const money = (n) => (Math.round((n + Number.EPSILON) * 100) / 100).toFixed(2);
 
 function simplifyDebts(balances) {
-  const creditors = balances.filter((b) => b.net > 0.005).map((b) => ({ ...b })).sort((a, b) => b.net - a.net);
-  const debtors = balances.filter((b) => b.net < -0.005).map((b) => ({ ...b })).sort((a, b) => a.net - b.net);
+  const creditors = balances
+    .filter((b) => b.net > 0.005)
+    .map((b) => ({ ...b }))
+    .sort((a, b) => b.net - a.net);
+  const debtors = balances
+    .filter((b) => b.net < -0.005)
+    .map((b) => ({ ...b }))
+    .sort((a, b) => a.net - b.net);
   const transfers = [];
-  let i = 0, j = 0;
+  let i = 0,
+    j = 0;
   while (i < debtors.length && j < creditors.length) {
     const debtor = debtors[i];
     const creditor = creditors[j];
@@ -35,7 +52,8 @@ function simplifyDebts(balances) {
 function tripBalances(trip, peopleById) {
   const map = {};
   (trip.participantIds || []).forEach((id) => {
-    if (peopleById[id]) map[id] = { id, name: peopleById[id].name, paid: 0, owes: 0 };
+    if (peopleById[id])
+      map[id] = { id, name: peopleById[id].name, paid: 0, owes: 0 };
   });
   (trip.receipts || []).forEach((r) => {
     if (map[r.paidBy]) map[r.paidBy].paid += r.amount;
@@ -79,10 +97,17 @@ export default function TripLedgerApp() {
 
   useEffect(() => {
     if (!loaded) return;
-    window.storage.set(STORAGE_KEY, JSON.stringify({ people, trips }), false).catch(() => {});
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ people, trips }));
+    } catch (e) {
+      // ignore write errors (e.g. storage full or disabled)
+    }
   }, [people, trips, loaded]);
 
-  const peopleById = useMemo(() => Object.fromEntries(people.map((p) => [p.id, p])), [people]);
+  const peopleById = useMemo(
+    () => Object.fromEntries(people.map((p) => [p.id, p])),
+    [people],
+  );
 
   const globalNet = useMemo(() => {
     const net = Object.fromEntries(people.map((p) => [p.id, 0]));
@@ -95,7 +120,12 @@ export default function TripLedgerApp() {
   }, [people, trips, peopleById]);
 
   function addTrip(name) {
-    const trip = { id: uid(), name: name || "Untitled Trip", participantIds: [], receipts: [] };
+    const trip = {
+      id: uid(),
+      name: name || "Untitled Trip",
+      participantIds: [],
+      receipts: [],
+    };
     setTrips((t) => [trip, ...t]);
     return trip.id;
   }
@@ -126,20 +156,29 @@ export default function TripLedgerApp() {
             ...r,
             participants: r.participants.filter((pid) => pid !== id),
             customSplits: r.customSplits
-              ? Object.fromEntries(Object.entries(r.customSplits).filter(([pid]) => pid !== id))
+              ? Object.fromEntries(
+                  Object.entries(r.customSplits).filter(([pid]) => pid !== id),
+                )
               : undefined,
           })),
-      }))
+      })),
     );
   }
 
   const activeTrip = trips.find((t) => t.id === activeTripId);
 
   return (
-    <div style={{ fontFamily: "'IBM Plex Sans', sans-serif" }} className="w-full min-h-full bg-[#ECE7DA] text-[#1C2B39]">
+    <div
+      style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
+      className="w-full min-h-full bg-[#ECE7DA] text-[#1C2B39]"
+    >
       <style>{FONT_IMPORT}</style>
       <div className="max-w-md mx-auto px-4 pt-6 pb-10">
-        <TopNav view={view} setView={setView} onBack={view === "trip" ? () => setView("home") : null} />
+        <TopNav
+          view={view}
+          setView={setView}
+          onBack={view === "trip" ? () => setView("home") : null}
+        />
 
         {view === "home" && (
           <HomeScreen
@@ -155,7 +194,12 @@ export default function TripLedgerApp() {
         )}
 
         {view === "people" && (
-          <PeopleScreen people={people} globalNet={globalNet} addGlobalPerson={addGlobalPerson} removeGlobalPerson={removeGlobalPerson} />
+          <PeopleScreen
+            people={people}
+            globalNet={globalNet}
+            addGlobalPerson={addGlobalPerson}
+            removeGlobalPerson={removeGlobalPerson}
+          />
         )}
 
         {view === "trip" && activeTrip && (
@@ -177,13 +221,22 @@ function TopNav({ view, setView, onBack }) {
     <div className="flex items-center justify-between mb-5">
       <div className="flex items-center gap-2">
         {onBack ? (
-          <button onClick={onBack} className="flex items-center gap-1 text-sm font-semibold text-[#1F5C56]">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-1 text-sm font-semibold text-[#1F5C56]"
+          >
             <ChevronLeft size={18} /> Trips
           </button>
         ) : (
           <div className="flex items-center gap-2 text-[#1F5C56]">
             <Plane size={18} strokeWidth={2.5} />
-            <span style={{ fontFamily: "'Big Shoulders Display', sans-serif", fontSize: "1.4rem", fontWeight: 700 }}>
+            <span
+              style={{
+                fontFamily: "'Big Shoulders Display', sans-serif",
+                fontSize: "1.4rem",
+                fontWeight: 700,
+              }}
+            >
               Trip Ledger
             </span>
           </div>
@@ -199,7 +252,9 @@ function TopNav({ view, setView, onBack }) {
               key={id}
               onClick={() => setView(id)}
               className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold ${
-                view === id ? "bg-[#1F5C56] text-[#ECE7DA]" : "text-[#1C2B39]/50"
+                view === id
+                  ? "bg-[#1F5C56] text-[#ECE7DA]"
+                  : "text-[#1C2B39]/50"
               }`}
             >
               <Icon size={13} /> {label}
@@ -225,29 +280,49 @@ function HomeScreen({ trips, peopleById, addTrip, removeTrip, openTrip }) {
   return (
     <div className="space-y-3">
       {trips.length === 0 && !adding && (
-        <p className="text-sm text-[#1C2B39]/60 italic px-1">No trips yet. Start one below.</p>
+        <p className="text-sm text-[#1C2B39]/60 italic px-1">
+          No trips yet. Start one below.
+        </p>
       )}
 
       {trips.map((trip) => {
         const total = trip.receipts.reduce((s, r) => s + r.amount, 0);
         return (
-          <div key={trip.id} className="bg-white rounded-lg border border-[#1C2B39]/10 overflow-hidden">
-            <button onClick={() => openTrip(trip.id)} className="w-full text-left px-4 py-3 flex items-center justify-between">
+          <div
+            key={trip.id}
+            className="bg-white rounded-lg border border-[#1C2B39]/10 overflow-hidden"
+          >
+            <button
+              onClick={() => openTrip(trip.id)}
+              className="w-full text-left px-4 py-3 flex items-center justify-between"
+            >
               <div>
-                <div style={{ fontFamily: "'Big Shoulders Display', sans-serif", fontSize: "1.3rem", fontWeight: 700 }}>
+                <div
+                  style={{
+                    fontFamily: "'Big Shoulders Display', sans-serif",
+                    fontSize: "1.3rem",
+                    fontWeight: 700,
+                  }}
+                >
                   {trip.name}
                 </div>
                 <div className="text-xs text-[#1C2B39]/50 mt-0.5">
-                  {trip.participantIds.length} pax · {trip.receipts.length} receipts
+                  {trip.participantIds.length} pax · {trip.receipts.length}{" "}
+                  receipts
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <div className="font-mono text-sm font-semibold text-[#1F5C56]">${money(total)}</div>
+                <div className="font-mono text-sm font-semibold text-[#1F5C56]">
+                  ${money(total)}
+                </div>
                 <ChevronRight size={16} className="text-[#1C2B39]/30" />
               </div>
             </button>
             <div className="flex justify-end px-4 pb-2">
-              <button onClick={() => removeTrip(trip.id)} className="text-[#B23A2E]/60 hover:text-[#B23A2E] text-xs flex items-center gap-1">
+              <button
+                onClick={() => removeTrip(trip.id)}
+                className="text-[#B23A2E]/60 hover:text-[#B23A2E] text-xs flex items-center gap-1"
+              >
                 <Trash2 size={12} /> Delete trip
               </button>
             </div>
@@ -265,10 +340,16 @@ function HomeScreen({ trips, peopleById, addTrip, removeTrip, openTrip }) {
             placeholder="Trip name"
             className="flex-1 outline-none bg-transparent border-b border-[#1C2B39]/20 px-1 py-1"
           />
-          <button onClick={submit} className="px-3 py-1 rounded bg-[#1F5C56] text-[#ECE7DA] text-sm font-semibold">
+          <button
+            onClick={submit}
+            className="px-3 py-1 rounded bg-[#1F5C56] text-[#ECE7DA] text-sm font-semibold"
+          >
             <Check size={16} />
           </button>
-          <button onClick={() => setAdding(false)} className="px-2 text-[#1C2B39]/50">
+          <button
+            onClick={() => setAdding(false)}
+            className="px-2 text-[#1C2B39]/50"
+          >
             <X size={16} />
           </button>
         </div>
@@ -284,7 +365,12 @@ function HomeScreen({ trips, peopleById, addTrip, removeTrip, openTrip }) {
   );
 }
 
-function PeopleScreen({ people, globalNet, addGlobalPerson, removeGlobalPerson }) {
+function PeopleScreen({
+  people,
+  globalNet,
+  addGlobalPerson,
+  removeGlobalPerson,
+}) {
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
 
@@ -297,14 +383,23 @@ function PeopleScreen({ people, globalNet, addGlobalPerson, removeGlobalPerson }
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-[#1C2B39]/50 px-1">Balance shown is net across every trip this person is part of.</p>
+      <p className="text-xs text-[#1C2B39]/50 px-1">
+        Balance shown is net across every trip this person is part of.
+      </p>
 
-      {people.length === 0 && !adding && <p className="text-sm text-[#1C2B39]/60 italic px-1">No one in the directory yet.</p>}
+      {people.length === 0 && !adding && (
+        <p className="text-sm text-[#1C2B39]/60 italic px-1">
+          No one in the directory yet.
+        </p>
+      )}
 
       {people.map((p) => {
         const net = globalNet[p.id] || 0;
         return (
-          <div key={p.id} className="flex items-center justify-between bg-white rounded-lg px-4 py-3 border border-[#1C2B39]/10">
+          <div
+            key={p.id}
+            className="flex items-center justify-between bg-white rounded-lg px-4 py-3 border border-[#1C2B39]/10"
+          >
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-[#1F5C56] text-[#ECE7DA] flex items-center justify-center font-mono text-sm font-semibold">
                 {p.name.slice(0, 1).toUpperCase()}
@@ -312,10 +407,18 @@ function PeopleScreen({ people, globalNet, addGlobalPerson, removeGlobalPerson }
               <span className="font-medium">{p.name}</span>
             </div>
             <div className="flex items-center gap-3">
-              <span className="font-mono text-sm font-semibold" style={{ color: net >= 0 ? "#3F6B4F" : "#B23A2E" }}>
-                {Math.abs(net) < 0.005 ? "settled" : `${net >= 0 ? "+" : "-"}$${money(Math.abs(net))}`}
+              <span
+                className="font-mono text-sm font-semibold"
+                style={{ color: net >= 0 ? "#3F6B4F" : "#B23A2E" }}
+              >
+                {Math.abs(net) < 0.005
+                  ? "settled"
+                  : `${net >= 0 ? "+" : "-"}$${money(Math.abs(net))}`}
               </span>
-              <button onClick={() => removeGlobalPerson(p.id)} className="text-[#B23A2E]/70 hover:text-[#B23A2E]">
+              <button
+                onClick={() => removeGlobalPerson(p.id)}
+                className="text-[#B23A2E]/70 hover:text-[#B23A2E]"
+              >
                 <Trash2 size={16} />
               </button>
             </div>
@@ -333,10 +436,16 @@ function PeopleScreen({ people, globalNet, addGlobalPerson, removeGlobalPerson }
             placeholder="Name"
             className="flex-1 outline-none bg-transparent border-b border-[#1C2B39]/20 px-1 py-1"
           />
-          <button onClick={submit} className="px-3 py-1 rounded bg-[#1F5C56] text-[#ECE7DA] text-sm font-semibold">
+          <button
+            onClick={submit}
+            className="px-3 py-1 rounded bg-[#1F5C56] text-[#ECE7DA] text-sm font-semibold"
+          >
             <Check size={16} />
           </button>
-          <button onClick={() => setAdding(false)} className="px-2 text-[#1C2B39]/50">
+          <button
+            onClick={() => setAdding(false)}
+            className="px-2 text-[#1C2B39]/50"
+          >
             <X size={16} />
           </button>
         </div>
@@ -356,14 +465,21 @@ function TripScreen({ trip, people, peopleById, addGlobalPerson, updateTrip }) {
   const [tab, setTab] = useState("people");
 
   const total = trip.receipts.reduce((s, r) => s + r.amount, 0);
-  const balances = useMemo(() => tripBalances(trip, peopleById), [trip, peopleById]);
+  const balances = useMemo(
+    () => tripBalances(trip, peopleById),
+    [trip, peopleById],
+  );
   const transfers = useMemo(() => simplifyDebts(balances), [balances]);
 
   function setName(name) {
     updateTrip((t) => ({ ...t, name }));
   }
   function addParticipant(id) {
-    updateTrip((t) => (t.participantIds.includes(id) ? t : { ...t, participantIds: [...t.participantIds, id] }));
+    updateTrip((t) =>
+      t.participantIds.includes(id)
+        ? t
+        : { ...t, participantIds: [...t.participantIds, id] },
+    );
   }
   function removeParticipant(id) {
     updateTrip((t) => ({
@@ -374,19 +490,28 @@ function TripScreen({ trip, people, peopleById, addGlobalPerson, updateTrip }) {
         .map((r) => ({
           ...r,
           participants: r.participants.filter((pid) => pid !== id),
-          customSplits: r.customSplits ? Object.fromEntries(Object.entries(r.customSplits).filter(([pid]) => pid !== id)) : undefined,
+          customSplits: r.customSplits
+            ? Object.fromEntries(
+                Object.entries(r.customSplits).filter(([pid]) => pid !== id),
+              )
+            : undefined,
         })),
     }));
   }
   function setReceipts(updaterOrArray) {
     updateTrip((t) => ({
       ...t,
-      receipts: typeof updaterOrArray === "function" ? updaterOrArray(t.receipts) : updaterOrArray,
+      receipts:
+        typeof updaterOrArray === "function"
+          ? updaterOrArray(t.receipts)
+          : updaterOrArray,
     }));
   }
 
   const [editingName, setEditingName] = useState(false);
-  const tripPeople = trip.participantIds.map((id) => peopleById[id]).filter(Boolean);
+  const tripPeople = trip.participantIds
+    .map((id) => peopleById[id])
+    .filter(Boolean);
 
   return (
     <div>
@@ -396,7 +521,9 @@ function TripScreen({ trip, people, peopleById, addGlobalPerson, updateTrip }) {
             <Plane size={14} strokeWidth={2.5} />
             Trip Ledger
           </div>
-          <div className="text-[10px] tracking-[0.15em] uppercase opacity-70 font-mono">{tripPeople.length} pax</div>
+          <div className="text-[10px] tracking-[0.15em] uppercase opacity-70 font-mono">
+            {tripPeople.length} pax
+          </div>
         </div>
 
         {editingName ? (
@@ -407,13 +534,21 @@ function TripScreen({ trip, people, peopleById, addGlobalPerson, updateTrip }) {
             onBlur={() => setEditingName(false)}
             onKeyDown={(e) => e.key === "Enter" && setEditingName(false)}
             className="mt-2 bg-transparent border-b border-[#C89B3C] outline-none w-full"
-            style={{ fontFamily: "'Big Shoulders Display', sans-serif", fontSize: "2.1rem", fontWeight: 700 }}
+            style={{
+              fontFamily: "'Big Shoulders Display', sans-serif",
+              fontSize: "2.1rem",
+              fontWeight: 700,
+            }}
           />
         ) : (
           <h1
             onClick={() => setEditingName(true)}
             className="mt-2 leading-none cursor-text"
-            style={{ fontFamily: "'Big Shoulders Display', sans-serif", fontSize: "2.1rem", fontWeight: 700 }}
+            style={{
+              fontFamily: "'Big Shoulders Display', sans-serif",
+              fontSize: "2.1rem",
+              fontWeight: 700,
+            }}
           >
             {trip.name}
           </h1>
@@ -421,20 +556,34 @@ function TripScreen({ trip, people, peopleById, addGlobalPerson, updateTrip }) {
 
         <div className="mt-4 flex items-end justify-between">
           <div>
-            <div className="text-[10px] uppercase tracking-[0.15em] opacity-70">Total spent</div>
-            <div className="font-mono text-2xl font-semibold text-[#C89B3C]">${money(total)}</div>
+            <div className="text-[10px] uppercase tracking-[0.15em] opacity-70">
+              Total spent
+            </div>
+            <div className="font-mono text-2xl font-semibold text-[#C89B3C]">
+              ${money(total)}
+            </div>
           </div>
           <div className="text-right">
-            <div className="text-[10px] uppercase tracking-[0.15em] opacity-70">Receipts</div>
-            <div className="font-mono text-2xl font-semibold">{trip.receipts.length}</div>
+            <div className="text-[10px] uppercase tracking-[0.15em] opacity-70">
+              Receipts
+            </div>
+            <div className="font-mono text-2xl font-semibold">
+              {trip.receipts.length}
+            </div>
           </div>
         </div>
       </div>
 
       <div className="relative h-0">
-        <div className="absolute -left-4 -right-4 flex justify-between px-1" style={{ top: "-9px" }}>
+        <div
+          className="absolute -left-4 -right-4 flex justify-between px-1"
+          style={{ top: "-9px" }}
+        >
           {Array.from({ length: 18 }).map((_, i) => (
-            <div key={i} className="w-[9px] h-[9px] rounded-full bg-[#ECE7DA]" />
+            <div
+              key={i}
+              className="w-[9px] h-[9px] rounded-full bg-[#ECE7DA]"
+            />
           ))}
         </div>
       </div>
@@ -450,7 +599,9 @@ function TripScreen({ trip, people, peopleById, addGlobalPerson, updateTrip }) {
             key={id}
             onClick={() => setTab(id)}
             className={`flex flex-col items-center gap-1 py-3 text-xs font-semibold uppercase tracking-wide transition-colors ${
-              tab === id ? "bg-[#1F5C56] text-[#ECE7DA]" : "text-[#1C2B39]/60 hover:bg-[#1C2B39]/5"
+              tab === id
+                ? "bg-[#1F5C56] text-[#ECE7DA]"
+                : "text-[#1C2B39]/60 hover:bg-[#1C2B39]/5"
             }`}
           >
             <Icon size={16} />
@@ -470,40 +621,64 @@ function TripScreen({ trip, people, peopleById, addGlobalPerson, updateTrip }) {
       )}
 
       {tab === "receipts" && (
-        <ReceiptsTab people={tripPeople} receipts={trip.receipts} setReceipts={setReceipts} />
+        <ReceiptsTab
+          people={tripPeople}
+          receipts={trip.receipts}
+          setReceipts={setReceipts}
+        />
       )}
 
       {tab === "settle" && (
         <div className="space-y-5 pb-4">
           <div className="space-y-2">
             {balances.map((b) => (
-              <div key={b.id} className="flex items-center justify-between bg-white rounded-lg px-4 py-3 border border-[#1C2B39]/10">
+              <div
+                key={b.id}
+                className="flex items-center justify-between bg-white rounded-lg px-4 py-3 border border-[#1C2B39]/10"
+              >
                 <span className="font-medium">{b.name}</span>
-                <span className="font-mono text-sm font-semibold" style={{ color: b.net >= 0 ? "#3F6B4F" : "#B23A2E" }}>
+                <span
+                  className="font-mono text-sm font-semibold"
+                  style={{ color: b.net >= 0 ? "#3F6B4F" : "#B23A2E" }}
+                >
                   {b.net >= 0 ? "+" : "-"}${money(Math.abs(b.net))}
                 </span>
               </div>
             ))}
-            {balances.length === 0 && <p className="text-sm text-[#1C2B39]/60 italic px-1">Add people and receipts to see balances.</p>}
+            {balances.length === 0 && (
+              <p className="text-sm text-[#1C2B39]/60 italic px-1">
+                Add people and receipts to see balances.
+              </p>
+            )}
           </div>
 
           <div>
             <div className="text-[10px] uppercase tracking-[0.15em] text-[#1C2B39]/50 font-semibold mb-2 px-1">
-              Settle with {transfers.length} transfer{transfers.length === 1 ? "" : "s"}
+              Settle with {transfers.length} transfer
+              {transfers.length === 1 ? "" : "s"}
             </div>
             <div className="space-y-2">
               {transfers.map((t, i) => (
-                <div key={i} className="flex items-center gap-3 bg-white rounded-lg px-4 py-3 border border-[#1C2B39]/10">
-                  <span className="font-medium flex-1 text-right">{t.from}</span>
+                <div
+                  key={i}
+                  className="flex items-center gap-3 bg-white rounded-lg px-4 py-3 border border-[#1C2B39]/10"
+                >
+                  <span className="font-medium flex-1 text-right">
+                    {t.from}
+                  </span>
                   <div className="flex flex-col items-center text-[#C89B3C]">
                     <ArrowRight size={16} />
-                    <span className="font-mono text-xs font-semibold">${money(t.amount)}</span>
+                    <span className="font-mono text-xs font-semibold">
+                      ${money(t.amount)}
+                    </span>
                   </div>
                   <span className="font-medium flex-1">{t.to}</span>
                 </div>
               ))}
               {transfers.length === 0 && balances.length > 0 && (
-                <p className="text-sm text-[#1C2B39]/60 italic px-1">Everyone's square. Nothing to settle.</p>
+                <p className="text-sm text-[#1C2B39]/60 italic px-1">
+                  Everyone's square. Nothing to settle.
+                </p>
               )}
             </div>
           </div>
@@ -513,10 +688,18 @@ function TripScreen({ trip, people, peopleById, addGlobalPerson, updateTrip }) {
   );
 }
 
-function TripPeopleTab({ people, tripPeople, addParticipant, removeParticipant, addGlobalPerson }) {
+function TripPeopleTab({
+  people,
+  tripPeople,
+  addParticipant,
+  removeParticipant,
+  addGlobalPerson,
+}) {
   const [showPicker, setShowPicker] = useState(false);
   const [newName, setNewName] = useState("");
-  const notInTrip = people.filter((p) => !tripPeople.some((tp) => tp.id === p.id));
+  const notInTrip = people.filter(
+    (p) => !tripPeople.some((tp) => tp.id === p.id),
+  );
 
   function createAndAdd() {
     if (!newName.trim()) return;
@@ -527,16 +710,26 @@ function TripPeopleTab({ people, tripPeople, addParticipant, removeParticipant, 
 
   return (
     <div className="space-y-2 pb-4">
-      {tripPeople.length === 0 && <p className="text-sm text-[#1C2B39]/60 italic px-1">No one added to this trip yet.</p>}
+      {tripPeople.length === 0 && (
+        <p className="text-sm text-[#1C2B39]/60 italic px-1">
+          No one added to this trip yet.
+        </p>
+      )}
       {tripPeople.map((p) => (
-        <div key={p.id} className="flex items-center justify-between bg-white rounded-lg px-4 py-3 border border-[#1C2B39]/10">
+        <div
+          key={p.id}
+          className="flex items-center justify-between bg-white rounded-lg px-4 py-3 border border-[#1C2B39]/10"
+        >
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-[#1F5C56] text-[#ECE7DA] flex items-center justify-center font-mono text-sm font-semibold">
               {p.name.slice(0, 1).toUpperCase()}
             </div>
             <span className="font-medium">{p.name}</span>
           </div>
-          <button onClick={() => removeParticipant(p.id)} className="text-[#B23A2E]/70 hover:text-[#B23A2E]">
+          <button
+            onClick={() => removeParticipant(p.id)}
+            className="text-[#B23A2E]/70 hover:text-[#B23A2E]"
+          >
             <Trash2 size={16} />
           </button>
         </div>
@@ -565,10 +758,16 @@ function TripPeopleTab({ people, tripPeople, addParticipant, removeParticipant, 
               placeholder="New person"
               className="flex-1 outline-none bg-transparent border-b border-[#1C2B39]/20 px-1 py-1 text-sm"
             />
-            <button onClick={createAndAdd} className="px-3 py-1 rounded bg-[#1F5C56] text-[#ECE7DA] text-sm font-semibold">
+            <button
+              onClick={createAndAdd}
+              className="px-3 py-1 rounded bg-[#1F5C56] text-[#ECE7DA] text-sm font-semibold"
+            >
               <Check size={16} />
             </button>
-            <button onClick={() => setShowPicker(false)} className="px-2 text-[#1C2B39]/50">
+            <button
+              onClick={() => setShowPicker(false)}
+              className="px-2 text-[#1C2B39]/50"
+            >
               <X size={16} />
             </button>
           </div>
@@ -596,16 +795,26 @@ function ReceiptsTab({ people, receipts, setReceipts }) {
 
   useEffect(() => {
     if (people.length && !paidBy) setPaidBy(people[0].id);
-    setParticipants((prev) => (prev.length ? prev.filter((id) => people.some((p) => p.id === id)) : people.map((p) => p.id)));
+    setParticipants((prev) =>
+      prev.length
+        ? prev.filter((id) => people.some((p) => p.id === id))
+        : people.map((p) => p.id),
+    );
   }, [people]);
 
   function toggleParticipant(id) {
-    setParticipants((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    setParticipants((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
   }
 
-  const customTotal = Object.values(customSplits).reduce((s, v) => s + (parseFloat(v) || 0), 0);
+  const customTotal = Object.values(customSplits).reduce(
+    (s, v) => s + (parseFloat(v) || 0),
+    0,
+  );
   const amt = parseFloat(amount) || 0;
-  const customValid = splitType !== "custom" || Math.abs(customTotal - amt) < 0.01;
+  const customValid =
+    splitType !== "custom" || Math.abs(customTotal - amt) < 0.01;
 
   function resetForm() {
     setDesc("");
@@ -626,8 +835,21 @@ function ReceiptsTab({ people, receipts, setReceipts }) {
       amount: amt,
       paidBy,
       splitType,
-      participants: splitType === "equal" ? participants : Object.keys(customSplits).filter((id) => (parseFloat(customSplits[id]) || 0) > 0),
-      customSplits: splitType === "custom" ? Object.fromEntries(Object.entries(customSplits).map(([k, v]) => [k, parseFloat(v) || 0])) : undefined,
+      participants:
+        splitType === "equal"
+          ? participants
+          : Object.keys(customSplits).filter(
+              (id) => (parseFloat(customSplits[id]) || 0) > 0,
+            ),
+      customSplits:
+        splitType === "custom"
+          ? Object.fromEntries(
+              Object.entries(customSplits).map(([k, v]) => [
+                k,
+                parseFloat(v) || 0,
+              ]),
+            )
+          : undefined,
     };
     setReceipts((rs) => [receipt, ...rs]);
     resetForm();
@@ -643,30 +865,52 @@ function ReceiptsTab({ people, receipts, setReceipts }) {
   return (
     <div className="space-y-3 pb-4">
       {receipts.length === 0 && !showReceiptForm && (
-        <p className="text-sm text-[#1C2B39]/60 italic px-1">No receipts yet. Log the first spend of the trip.</p>
+        <p className="text-sm text-[#1C2B39]/60 italic px-1">
+          No receipts yet. Log the first spend of the trip.
+        </p>
       )}
 
       {receipts.map((r) => (
-        <div key={r.id} className="bg-white rounded-lg border border-[#1C2B39]/10 overflow-hidden relative">
+        <div
+          key={r.id}
+          className="bg-white rounded-lg border border-[#1C2B39]/10 overflow-hidden relative"
+        >
           <div className="flex items-start justify-between px-4 pt-3">
             <div>
               <div className="font-medium">{r.description}</div>
               <div className="text-xs text-[#1C2B39]/50 mt-0.5">
-                Paid by <span className="font-semibold text-[#1C2B39]/70">{nameOf(r.paidBy)}</span> ·{" "}
-                {r.splitType === "equal" ? `split ${r.participants.length} ways` : "custom split"}
+                Paid by{" "}
+                <span className="font-semibold text-[#1C2B39]/70">
+                  {nameOf(r.paidBy)}
+                </span>{" "}
+                ·{" "}
+                {r.splitType === "equal"
+                  ? `split ${r.participants.length} ways`
+                  : "custom split"}
               </div>
             </div>
-            <div className="font-mono font-semibold text-[#1F5C56]">${money(r.amount)}</div>
+            <div className="font-mono font-semibold text-[#1F5C56]">
+              ${money(r.amount)}
+            </div>
           </div>
           <div className="flex items-center justify-between px-4 pb-3 pt-2">
             <div className="flex flex-wrap gap-1">
-              {(r.splitType === "equal" ? r.participants : Object.keys(r.customSplits || {})).map((pid) => (
-                <span key={pid} className="text-[10px] font-mono bg-[#ECE7DA] rounded px-1.5 py-0.5 text-[#1C2B39]/70">
+              {(r.splitType === "equal"
+                ? r.participants
+                : Object.keys(r.customSplits || {})
+              ).map((pid) => (
+                <span
+                  key={pid}
+                  className="text-[10px] font-mono bg-[#ECE7DA] rounded px-1.5 py-0.5 text-[#1C2B39]/70"
+                >
                   {nameOf(pid)}
                 </span>
               ))}
             </div>
-            <button onClick={() => removeReceipt(r.id)} className="text-[#B23A2E]/60 hover:text-[#B23A2E]">
+            <button
+              onClick={() => removeReceipt(r.id)}
+              className="text-[#B23A2E]/60 hover:text-[#B23A2E]"
+            >
               <Trash2 size={14} />
             </button>
           </div>
@@ -674,7 +918,9 @@ function ReceiptsTab({ people, receipts, setReceipts }) {
       ))}
 
       {people.length === 0 ? (
-        <p className="text-sm text-[#1C2B39]/50 italic px-1">Add people to this trip first before logging receipts.</p>
+        <p className="text-sm text-[#1C2B39]/50 italic px-1">
+          Add people to this trip first before logging receipts.
+        </p>
       ) : showReceiptForm ? (
         <div className="bg-white rounded-lg border border-[#1C2B39]/10 p-4 space-y-3">
           <input
@@ -685,7 +931,9 @@ function ReceiptsTab({ people, receipts, setReceipts }) {
           />
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="text-[10px] uppercase tracking-wide text-[#1C2B39]/50">Amount</label>
+              <label className="text-[10px] uppercase tracking-wide text-[#1C2B39]/50">
+                Amount
+              </label>
               <input
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
@@ -695,7 +943,9 @@ function ReceiptsTab({ people, receipts, setReceipts }) {
               />
             </div>
             <div className="flex-1">
-              <label className="text-[10px] uppercase tracking-wide text-[#1C2B39]/50">Paid by</label>
+              <label className="text-[10px] uppercase tracking-wide text-[#1C2B39]/50">
+                Paid by
+              </label>
               <select
                 value={paidBy}
                 onChange={(e) => setPaidBy(e.target.value)}
@@ -716,7 +966,9 @@ function ReceiptsTab({ people, receipts, setReceipts }) {
                 key={t}
                 onClick={() => setSplitType(t)}
                 className={`flex-1 py-1.5 rounded text-xs font-semibold uppercase tracking-wide ${
-                  splitType === t ? "bg-[#1F5C56] text-[#ECE7DA]" : "bg-[#ECE7DA] text-[#1C2B39]/60"
+                  splitType === t
+                    ? "bg-[#1F5C56] text-[#ECE7DA]"
+                    : "bg-[#ECE7DA] text-[#1C2B39]/60"
                 }`}
               >
                 {t === "equal" ? "Split equally" : "Custom split"}
@@ -743,18 +995,28 @@ function ReceiptsTab({ people, receipts, setReceipts }) {
           ) : (
             <div className="space-y-1.5 pt-1">
               {people.map((p) => (
-                <div key={p.id} className="flex items-center justify-between gap-2">
+                <div
+                  key={p.id}
+                  className="flex items-center justify-between gap-2"
+                >
                   <span className="text-sm">{p.name}</span>
                   <input
                     value={customSplits[p.id] || ""}
-                    onChange={(e) => setCustomSplits((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                    onChange={(e) =>
+                      setCustomSplits((prev) => ({
+                        ...prev,
+                        [p.id]: e.target.value,
+                      }))
+                    }
                     placeholder="0.00"
                     inputMode="decimal"
                     className="w-20 text-right outline-none border-b border-[#1C2B39]/20 py-0.5 bg-transparent font-mono text-sm"
                   />
                 </div>
               ))}
-              <div className={`text-xs text-right font-mono ${customValid ? "text-[#3F6B4F]" : "text-[#B23A2E]"}`}>
+              <div
+                className={`text-xs text-right font-mono ${customValid ? "text-[#3F6B4F]" : "text-[#B23A2E]"}`}
+              >
                 ${money(customTotal)} / ${money(amt)}
               </div>
             </div>
@@ -763,7 +1025,12 @@ function ReceiptsTab({ people, receipts, setReceipts }) {
           <div className="flex gap-2 pt-1">
             <button
               onClick={addReceipt}
-              disabled={!desc.trim() || !amt || !customValid || (splitType === "equal" && participants.length === 0)}
+              disabled={
+                !desc.trim() ||
+                !amt ||
+                !customValid ||
+                (splitType === "equal" && participants.length === 0)
+              }
               className="flex-1 py-2 rounded bg-[#1F5C56] text-[#ECE7DA] text-sm font-semibold disabled:opacity-30"
             >
               Save receipt
