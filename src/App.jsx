@@ -15,12 +15,43 @@ import {
 
 const STORAGE_KEY = "trip-ledger:data";
 
+function loadSession() {
+  try {
+    const data = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    const people = Array.isArray(data?.people) ? data.people : [];
+    const trips = Array.isArray(data?.trips) ? data.trips : [];
+    const activeTripId = trips.some((trip) => trip.id === data?.activeTripId)
+      ? data.activeTripId
+      : null;
+    return {
+      people,
+      trips,
+      activeTripId,
+      view:
+        data?.view === "people" || (data?.view === "trip" && activeTripId)
+          ? data.view
+          : "home",
+      tripTab: ["people", "receipts", "settle"].includes(data?.tripTab)
+        ? data.tripTab
+        : "people",
+    };
+  } catch {
+    return { people: [], trips: [], view: "home", activeTripId: null, tripTab: "people" };
+  }
+}
+
 const FONT_IMPORT = `
 @import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap');
 `;
 
 const uid = () => Math.random().toString(36).slice(2, 10);
-const money = (n) => (Math.round((n + Number.EPSILON) * 100) / 100).toFixed(2);
+const amountFormatter = new Intl.NumberFormat("vi-VN", {
+  maximumFractionDigits: 0,
+});
+const money = (n) => `${amountFormatter.format(n)} VNĐ`;
+const formatAmountInput = (value) =>
+  value === "" ? "" : amountFormatter.format(Number(value));
+const readAmountInput = (value) => value.replace(/[^0-9]/g, "");
 
 function simplifyDebts(balances) {
   const creditors = balances
@@ -72,37 +103,23 @@ function tripBalances(trip, peopleById) {
 }
 
 export default function TripLedgerApp() {
-  const [loaded, setLoaded] = useState(false);
-  const [people, setPeople] = useState([]);
-  const [trips, setTrips] = useState([]);
-  const [view, setView] = useState("home"); // home | people | trip
-  const [activeTripId, setActiveTripId] = useState(null);
+  const [initialSession] = useState(loadSession);
+  const [people, setPeople] = useState(initialSession.people);
+  const [trips, setTrips] = useState(initialSession.trips);
+  const [view, setView] = useState(initialSession.view); // home | people | trip
+  const [activeTripId, setActiveTripId] = useState(initialSession.activeTripId);
+  const [tripTab, setTripTab] = useState(initialSession.tripTab);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await window.storage.get(STORAGE_KEY, false);
-        if (res && res.value) {
-          const data = JSON.parse(res.value);
-          setPeople(data.people || []);
-          setTrips(data.trips || []);
-        }
-      } catch (e) {
-        // nothing saved yet
-      } finally {
-        setLoaded(true);
-      }
-    })();
-  }, []);
-
-  useEffect(() => {
-    if (!loaded) return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ people, trips }));
-    } catch (e) {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ people, trips, view, activeTripId, tripTab }),
+      );
+    } catch {
       // ignore write errors (e.g. storage full or disabled)
     }
-  }, [people, trips, loaded]);
+  }, [people, trips, view, activeTripId, tripTab]);
 
   const peopleById = useMemo(
     () => Object.fromEntries(people.map((p) => [p.id, p])),
@@ -188,6 +205,7 @@ export default function TripLedgerApp() {
             removeTrip={removeTrip}
             openTrip={(id) => {
               setActiveTripId(id);
+              setTripTab("people");
               setView("trip");
             }}
           />
@@ -204,6 +222,8 @@ export default function TripLedgerApp() {
 
         {view === "trip" && activeTrip && (
           <TripScreen
+            tab={tripTab}
+            setTab={setTripTab}
             trip={activeTrip}
             people={people}
             peopleById={peopleById}
@@ -313,7 +333,7 @@ function HomeScreen({ trips, peopleById, addTrip, removeTrip, openTrip }) {
               </div>
               <div className="flex items-center gap-3">
                 <div className="font-mono text-sm font-semibold text-[#1F5C56]">
-                  ${money(total)}
+                  {money(total)}
                 </div>
                 <ChevronRight size={16} className="text-[#1C2B39]/30" />
               </div>
@@ -413,7 +433,7 @@ function PeopleScreen({
               >
                 {Math.abs(net) < 0.005
                   ? "settled"
-                  : `${net >= 0 ? "+" : "-"}$${money(Math.abs(net))}`}
+                  : `${net >= 0 ? "+" : "-"}${money(Math.abs(net))}`}
               </span>
               <button
                 onClick={() => removeGlobalPerson(p.id)}
@@ -461,8 +481,7 @@ function PeopleScreen({
   );
 }
 
-function TripScreen({ trip, people, peopleById, addGlobalPerson, updateTrip }) {
-  const [tab, setTab] = useState("people");
+function TripScreen({ trip, people, peopleById, addGlobalPerson, updateTrip, tab, setTab }) {
 
   const total = trip.receipts.reduce((s, r) => s + r.amount, 0);
   const balances = useMemo(
@@ -560,7 +579,7 @@ function TripScreen({ trip, people, peopleById, addGlobalPerson, updateTrip }) {
               Total spent
             </div>
             <div className="font-mono text-2xl font-semibold text-[#C89B3C]">
-              ${money(total)}
+              {money(total)}
             </div>
           </div>
           <div className="text-right">
@@ -574,20 +593,7 @@ function TripScreen({ trip, people, peopleById, addGlobalPerson, updateTrip }) {
         </div>
       </div>
 
-      <div className="relative h-0">
-        <div
-          className="absolute -left-4 -right-4 flex justify-between px-1"
-          style={{ top: "-9px" }}
-        >
-          {Array.from({ length: 18 }).map((_, i) => (
-            <div
-              key={i}
-              className="w-[9px] h-[9px] rounded-full bg-[#ECE7DA]"
-            />
-          ))}
-        </div>
-      </div>
-      <div className="border-t border-dashed border-[#1C2B39]/30" />
+      <div className="border-t border-[#1C2B39]/10" />
 
       <div className="grid grid-cols-3 bg-white/60 rounded-b-lg overflow-hidden mb-5 border border-[#1C2B39]/10 border-t-0">
         {[
@@ -641,7 +647,7 @@ function TripScreen({ trip, people, peopleById, addGlobalPerson, updateTrip }) {
                   className="font-mono text-sm font-semibold"
                   style={{ color: b.net >= 0 ? "#3F6B4F" : "#B23A2E" }}
                 >
-                  {b.net >= 0 ? "+" : "-"}${money(Math.abs(b.net))}
+                  {b.net >= 0 ? "+" : "-"}{money(Math.abs(b.net))}
                 </span>
               </div>
             ))}
@@ -669,7 +675,7 @@ function TripScreen({ trip, people, peopleById, addGlobalPerson, updateTrip }) {
                   <div className="flex flex-col items-center text-[#C89B3C]">
                     <ArrowRight size={16} />
                     <span className="font-mono text-xs font-semibold">
-                      ${money(t.amount)}
+                      {money(t.amount)}
                     </span>
                   </div>
                   <span className="font-medium flex-1">{t.to}</span>
@@ -890,7 +896,7 @@ function ReceiptsTab({ people, receipts, setReceipts }) {
               </div>
             </div>
             <div className="font-mono font-semibold text-[#1F5C56]">
-              ${money(r.amount)}
+              {money(r.amount)}
             </div>
           </div>
           <div className="flex items-center justify-between px-4 pb-3 pt-2">
@@ -932,13 +938,13 @@ function ReceiptsTab({ people, receipts, setReceipts }) {
           <div className="flex gap-3">
             <div className="flex-1">
               <label className="text-[10px] uppercase tracking-wide text-[#1C2B39]/50">
-                Amount
+                Amount (VNĐ)
               </label>
               <input
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="0.00"
-                inputMode="decimal"
+                value={formatAmountInput(amount)}
+                onChange={(e) => setAmount(readAmountInput(e.target.value))}
+                placeholder="0"
+                inputMode="numeric"
                 className="w-full outline-none border-b border-[#1C2B39]/20 py-1.5 bg-transparent font-mono"
               />
             </div>
@@ -1001,23 +1007,24 @@ function ReceiptsTab({ people, receipts, setReceipts }) {
                 >
                   <span className="text-sm">{p.name}</span>
                   <input
-                    value={customSplits[p.id] || ""}
+                    value={formatAmountInput(customSplits[p.id] || "")}
                     onChange={(e) =>
                       setCustomSplits((prev) => ({
                         ...prev,
-                        [p.id]: e.target.value,
+                        [p.id]: readAmountInput(e.target.value),
                       }))
                     }
-                    placeholder="0.00"
-                    inputMode="decimal"
-                    className="w-20 text-right outline-none border-b border-[#1C2B39]/20 py-0.5 bg-transparent font-mono text-sm"
+                    placeholder="0"
+                    inputMode="numeric"
+                    aria-label={`${p.name}'s share (VNĐ)`}
+                    className="w-32 text-right outline-none border-b border-[#1C2B39]/20 py-0.5 bg-transparent font-mono text-sm"
                   />
                 </div>
               ))}
               <div
                 className={`text-xs text-right font-mono ${customValid ? "text-[#3F6B4F]" : "text-[#B23A2E]"}`}
               >
-                ${money(customTotal)} / ${money(amt)}
+                {money(customTotal)} / {money(amt)}
               </div>
             </div>
           )}
